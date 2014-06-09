@@ -1,7 +1,7 @@
 prefix=PREFIX
 exec_prefix=${prefix}
 libdir=${exec_prefix}/LIBDIR
-includedir=${prefix}/include
+includedir=${prefix}/INCLUDEDIR
 
 Name: libsvgtiny
 Description: SVG Tiny 1.1 rendering library
