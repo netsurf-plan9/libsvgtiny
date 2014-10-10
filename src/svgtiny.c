@@ -407,6 +407,7 @@ svgtiny_code svgtiny_parse_path(dom_element *path,
 	float last_x = 0, last_y = 0;
 	float last_cubic_x = 0, last_cubic_y = 0;
 	float last_quad_x = 0, last_quad_y = 0;
+	float subpath_first_x = 0, subpath_first_y = 0;
 
 	svgtiny_setup_state_local(&state);
 
@@ -468,6 +469,10 @@ svgtiny_code svgtiny_parse_path(dom_element *path,
 					x += last_x;
 					y += last_y;
 				}
+				if (plot_command == svgtiny_PATH_MOVE) {
+					subpath_first_x = x;
+					subpath_first_y = y;
+				}
 				p[i++] = last_cubic_x = last_quad_x = last_x
 						= x;
 				p[i++] = last_cubic_y = last_quad_y = last_y
@@ -481,6 +486,8 @@ svgtiny_code svgtiny_parse_path(dom_element *path,
 			/*LOG(("closepath"));*/
 			p[i++] = svgtiny_PATH_CLOSE;
 			s += n;
+			last_cubic_x = last_quad_x = last_x = subpath_first_x;
+			last_cubic_y = last_quad_y = last_y = subpath_first_y;
 
 		/* horizontal lineto (H, h) (1 argument) */
 		} else if (sscanf(s, " %1[Hh] %f %n", command, &x, &n) == 2) {
