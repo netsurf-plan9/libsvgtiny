@@ -402,7 +402,8 @@ svgtiny_code svgtiny_parse_path(dom_element *path,
 	dom_string *path_d_str;
 	dom_exception exc;
 	char *s, *path_d;
-	float *p;
+	float *p; /* path elemets */
+        unsigned int palloc; /* number of path elements allocated */
 	unsigned int i;
 	float last_x = 0, last_y = 0;
 	float last_cubic_x = 0, last_cubic_y = 0;
@@ -430,16 +431,31 @@ svgtiny_code svgtiny_parse_path(dom_element *path,
 		return svgtiny_SVG_ERROR;
 	}
 
-	s = path_d = strndup(dom_string_data(path_d_str),
-			     dom_string_byte_length(path_d_str));
+        /* empty path is permitted it just disables the path */
+        palloc = dom_string_byte_length(path_d_str);
+        if (palloc == 0) {
+		svgtiny_cleanup_state_local(&state);
+		return svgtiny_OK;
+        }
+
+        /* local copy of the path data allowing in-place modification */
+	s = path_d = strndup(dom_string_data(path_d_str), palloc);
 	dom_string_unref(path_d_str);
 	if (s == NULL) {
 		svgtiny_cleanup_state_local(&state);
 		return svgtiny_OUT_OF_MEMORY;
 	}
-	/* allocate space for path: it will never have more elements than d */
-	p = malloc(sizeof p[0] * strlen(s));
-	if (!p) {
+
+        /* ensure path element allocation is sensibly bounded */
+        if (palloc < 8) {
+            palloc = 8;
+        } else if (palloc > 64) {
+            palloc = palloc / 2;
+        }
+
+	/* allocate initial space for path elements */
+	p = malloc(sizeof p[0] * palloc);
+	if (p == NULL) {
 		free(path_d);
 		svgtiny_cleanup_state_local(&state);
 		return svgtiny_OUT_OF_MEMORY;
@@ -455,6 +471,21 @@ svgtiny_code svgtiny_parse_path(dom_element *path,
 		int plot_command;
 		float x, y, x1, y1, x2, y2, rx, ry, rotation, large_arc, sweep;
 		int n;
+
+                /* Ensure there is sufficient space for path elements */
+                if ((palloc - i) < 7) {
+                    float *tp;
+                    palloc = (palloc * 2) + (palloc / 2);
+                    tp = realloc(p, sizeof p[0] * palloc);
+                    if (tp == NULL) {
+                        free(p);
+                        free(path_d);
+                        svgtiny_cleanup_state_local(&state);
+                        return svgtiny_OUT_OF_MEMORY;
+                    }
+                    p = tp;
+                }
+
 
 		/* moveto (M, m), lineto (L, l) (2 arguments) */
 		if (sscanf(s, " %1[MmLl] %f %f %n", command, &x, &y, &n) == 3) {
@@ -647,6 +678,19 @@ svgtiny_code svgtiny_parse_path(dom_element *path,
 		svgtiny_cleanup_state_local(&state);
 		return svgtiny_OK;
 	}
+
+        /* resize path element array to not be over allocated */
+        if (palloc != i) {
+            float *tp;
+
+            /* try the resize, if it fails just continue to use the old
+             * allocation
+             */
+            tp = realloc(p, sizeof p[0] * i);
+            if (tp != NULL) {
+                p = tp;
+            }
+        }
 
 	err = svgtiny_add_path(p, i, &state);
 
