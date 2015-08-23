@@ -473,18 +473,21 @@ svgtiny_code svgtiny_parse_path(dom_element *path,
 		int n;
 
                 /* Ensure there is sufficient space for path elements */
-                if ((palloc - i) < 7) {
-                    float *tp;
-                    palloc = (palloc * 2) + (palloc / 2);
-                    tp = realloc(p, sizeof p[0] * palloc);
-                    if (tp == NULL) {
-                        free(p);
-                        free(path_d);
-                        svgtiny_cleanup_state_local(&state);
-                        return svgtiny_OUT_OF_MEMORY;
-                    }
-                    p = tp;
-                }
+#define ALLOC_PATH_ELEMENTS(NUM_ELEMENTS)                               \
+                do {                                                    \
+                        if ((palloc - i) < NUM_ELEMENTS) {              \
+                                float *tp;                              \
+                                palloc = (palloc * 2) + (palloc / 2);   \
+                                tp = realloc(p, sizeof p[0] * palloc);  \
+                                if (tp == NULL) {                       \
+                                        free(p);                        \
+                                        free(path_d);                   \
+                                        svgtiny_cleanup_state_local(&state); \
+                                        return svgtiny_OUT_OF_MEMORY;   \
+                                }                                       \
+                                p = tp;                                 \
+                        }                                               \
+                } while(0)
 
 
 		/* moveto (M, m), lineto (L, l) (2 arguments) */
@@ -495,6 +498,7 @@ svgtiny_code svgtiny_parse_path(dom_element *path,
 			else
 				plot_command = svgtiny_PATH_LINE;
 			do {
+                                ALLOC_PATH_ELEMENTS(3);
 				p[i++] = plot_command;
 				if ('a' <= *command) {
 					x += last_x;
@@ -515,6 +519,8 @@ svgtiny_code svgtiny_parse_path(dom_element *path,
 		/* closepath (Z, z) (no arguments) */
 		} else if (sscanf(s, " %1[Zz] %n", command, &n) == 1) {
 			/*LOG(("closepath"));*/
+                        ALLOC_PATH_ELEMENTS(1);
+
 			p[i++] = svgtiny_PATH_CLOSE;
 			s += n;
 			last_cubic_x = last_quad_x = last_x = subpath_first_x;
@@ -524,6 +530,8 @@ svgtiny_code svgtiny_parse_path(dom_element *path,
 		} else if (sscanf(s, " %1[Hh] %f %n", command, &x, &n) == 2) {
 			/*LOG(("horizontal lineto"));*/
 			do {
+                                ALLOC_PATH_ELEMENTS(3);
+
 				p[i++] = svgtiny_PATH_LINE;
 				if (*command == 'h')
 					x += last_x;
@@ -537,6 +545,8 @@ svgtiny_code svgtiny_parse_path(dom_element *path,
 		} else if (sscanf(s, " %1[Vv] %f %n", command, &y, &n) == 2) {
 			/*LOG(("vertical lineto"));*/
 			do {
+                                ALLOC_PATH_ELEMENTS(3);
+
 				p[i++] = svgtiny_PATH_LINE;
 				if (*command == 'v')
 					y += last_y;
@@ -551,6 +561,8 @@ svgtiny_code svgtiny_parse_path(dom_element *path,
 				&x1, &y1, &x2, &y2, &x, &y, &n) == 7) {
 			/*LOG(("curveto"));*/
 			do {
+                                ALLOC_PATH_ELEMENTS(7);
+
 				p[i++] = svgtiny_PATH_BEZIER;
 				if (*command == 'c') {
 					x1 += last_x;
@@ -575,6 +587,8 @@ svgtiny_code svgtiny_parse_path(dom_element *path,
 				&x2, &y2, &x, &y, &n) == 5) {
 			/*LOG(("shorthand/smooth curveto"));*/
 			do {
+                                ALLOC_PATH_ELEMENTS(7);
+
 				p[i++] = svgtiny_PATH_BEZIER;
 				x1 = last_x + (last_x - last_cubic_x);
 				y1 = last_y + (last_y - last_cubic_y);
@@ -599,6 +613,8 @@ svgtiny_code svgtiny_parse_path(dom_element *path,
 				&x1, &y1, &x, &y, &n) == 5) {
 			/*LOG(("quadratic Bezier curveto"));*/
 			do {
+                                ALLOC_PATH_ELEMENTS(7);
+
 				p[i++] = svgtiny_PATH_BEZIER;
 				last_quad_x = x1;
 				last_quad_y = y1;
@@ -624,6 +640,8 @@ svgtiny_code svgtiny_parse_path(dom_element *path,
 				&x, &y, &n) == 3) {
 			/*LOG(("shorthand/smooth quadratic Bezier curveto"));*/
 			do {
+                                ALLOC_PATH_ELEMENTS(7);
+
 				p[i++] = svgtiny_PATH_BEZIER;
 				x1 = last_x + (last_x - last_quad_x);
 				y1 = last_y + (last_y - last_quad_y);
@@ -650,6 +668,8 @@ svgtiny_code svgtiny_parse_path(dom_element *path,
 				&rx, &ry, &rotation, &large_arc, &sweep,
 				&x, &y, &n) == 8) {
 			do {
+                                ALLOC_PATH_ELEMENTS(3);
+
 				p[i++] = svgtiny_PATH_LINE;
 				if (*command == 'a') {
 					x += last_x;
@@ -681,15 +701,15 @@ svgtiny_code svgtiny_parse_path(dom_element *path,
 
         /* resize path element array to not be over allocated */
         if (palloc != i) {
-            float *tp;
+                float *tp;
 
-            /* try the resize, if it fails just continue to use the old
-             * allocation
-             */
-            tp = realloc(p, sizeof p[0] * i);
-            if (tp != NULL) {
-                p = tp;
-            }
+                /* try the resize, if it fails just continue to use the old
+                 * allocation
+                 */
+                tp = realloc(p, sizeof p[0] * i);
+                if (tp != NULL) {
+                        p = tp;
+                }
         }
 
 	err = svgtiny_add_path(p, i, &state);
