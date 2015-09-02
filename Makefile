@@ -15,7 +15,8 @@ PREFIX ?= /opt/netsurf
 NSSHARED ?= $(PREFIX)/share/netsurf-buildsystem
 include $(NSSHARED)/makefiles/Makefile.tools
 
-TESTRUNNER := $(ECHO)
+# Reevaluate when used, as BUILDDIR won't be defined yet
+TESTRUNNER = test/runtest.sh $(BUILDDIR) $(EXEEXT)
 
 # Toolchain flags
 WARNFLAGS := -Wall -W -Wundef -Wpointer-arith -Wcast-align \
