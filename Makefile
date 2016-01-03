@@ -2,11 +2,11 @@
 #
 # Makefile for libsvgtiny
 #
-# Copyright 2009-1015 John-Mark Bell <jmb@netsurf-browser.org>
+# Copyright 2009-2015 John-Mark Bell <jmb@netsurf-browser.org>
 
 # Component settings
 COMPONENT := svgtiny
-COMPONENT_VERSION := 0.1.3
+COMPONENT_VERSION := 0.1.4
 # Default to a static library
 COMPONENT_TYPE ?= lib-static
 
