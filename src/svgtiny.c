@@ -188,6 +188,12 @@ svgtiny_code svgtiny_parse(struct svgtiny_diagram *diagram,
 		dom_node_unref(document);
 		return svgtiny_LIBDOM_ERROR;
 	}
+        if (svg == NULL) {
+                /* no root svg element */
+                dom_node_unref(document);
+		return svgtiny_SVG_ERROR;
+        }
+
 	exc = dom_node_get_node_name(svg, &svg_name);
 	if (exc != DOM_NO_ERR) {
 		dom_node_unref(svg);
