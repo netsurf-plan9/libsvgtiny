@@ -410,8 +410,7 @@ svgtiny_code svgtiny_add_path_linear_gradient(float *p, unsigned int n,
 	/* r, r0, r1 are distance along gradient vector */
 	gradient_norm_squared = gradient_dx * gradient_dx +
 	                              gradient_dy * gradient_dy;
-	pts = svgtiny_list_create(
-			sizeof (struct grad_point));
+	pts = svgtiny_list_create(sizeof (struct grad_point));
 	if (!pts)
 		return svgtiny_OUT_OF_MEMORY;
 	for (j = 0; j != n; ) {
@@ -540,6 +539,13 @@ svgtiny_code svgtiny_add_path_linear_gradient(float *p, unsigned int n,
 			svgtiny_list_size(pts), min_pt, min_r);
 	#endif
 
+        /* There must be at least a single point for the gradient */
+        if (svgtiny_list_size(pts) == 0) {
+            svgtiny_list_free(pts);
+
+            return svgtiny_OK;
+        }
+        
 	/* render triangles */
 	stop_count = state->linear_gradient_stop_count;
 	assert(2 <= stop_count);
