@@ -20,6 +20,9 @@ echo "SVG tests" > ${TEST_LOG}
 # netsurf test svg
 SVGTESTS="test/data/*.svg"
 
+# netsurf afl generated svg suite
+SVGTESTS="${SVGTESTS} test/ns-afl-svg/*.svg"
+
 svgdecode()
 {
     OUTF=$(basename ${1} .svg)
