@@ -152,11 +152,6 @@ svgtiny_code svgtiny_parse(struct svgtiny_diagram *diagram,
 
 	UNUSED(url);
 
-	state.gradient_x1 = NULL;
-	state.gradient_y1 = NULL;
-	state.gradient_x2 = NULL;
-	state.gradient_y2 = NULL;
-
 	parser = dom_xml_parser_create(NULL, NULL,
 				       ignore_msg, NULL, &document);
 
