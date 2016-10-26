@@ -54,7 +54,51 @@ static void svgtiny_parse_transform_attributes(dom_element *node,
 static svgtiny_code svgtiny_add_path(float *p, unsigned int n,
 		struct svgtiny_parse_state *state);
 static void _svgtiny_parse_color(const char *s, svgtiny_colour *c,
+		struct svgtiny_parse_state_gradient *grad,
 		struct svgtiny_parse_state *state);
+
+/**
+ * Call this to ref the strings in a gradient state.
+ */
+static void svgtiny_grad_string_ref(struct svgtiny_parse_state_gradient *grad)
+{
+	if (grad->gradient_x1 != NULL) {
+		dom_string_ref(grad->gradient_x1);
+	}
+	if (grad->gradient_y1 != NULL) {
+		dom_string_ref(grad->gradient_y1);
+	}
+	if (grad->gradient_x2 != NULL) {
+		dom_string_ref(grad->gradient_x2);
+	}
+	if (grad->gradient_y2 != NULL) {
+		dom_string_ref(grad->gradient_y2);
+	}
+}
+
+/**
+ * Call this to clean up the strings in a gradient state.
+ */
+static void svgtiny_grad_string_cleanup(
+		struct svgtiny_parse_state_gradient *grad)
+{
+	if (grad->gradient_x1 != NULL) {
+		dom_string_unref(grad->gradient_x1);
+		grad->gradient_x1 = NULL;
+	}
+	if (grad->gradient_y1 != NULL) {
+		dom_string_unref(grad->gradient_y1);
+		grad->gradient_y1 = NULL;
+	}
+	if (grad->gradient_x2 != NULL) {
+		dom_string_unref(grad->gradient_x2);
+		grad->gradient_x2 = NULL;
+	}
+	if (grad->gradient_y2 != NULL) {
+		dom_string_unref(grad->gradient_y2);
+		grad->gradient_y2 = NULL;
+	}
+}
 
 /**
  * Set the local externally-stored parts of a parse state.
@@ -63,18 +107,8 @@ static void _svgtiny_parse_color(const char *s, svgtiny_colour *c,
  */
 static void svgtiny_setup_state_local(struct svgtiny_parse_state *state)
 {
-	if (state->gradient_x1 != NULL) {
-		dom_string_ref(state->gradient_x1);
-	}
-	if (state->gradient_y1 != NULL) {
-		dom_string_ref(state->gradient_y1);
-	}
-	if (state->gradient_x2 != NULL) {
-		dom_string_ref(state->gradient_x2);
-	}
-	if (state->gradient_y2 != NULL) {
-		dom_string_ref(state->gradient_y2);
-	}
+	svgtiny_grad_string_ref(&(state->fill_grad));
+	svgtiny_grad_string_ref(&(state->stroke_grad));
 }
 
 /**
@@ -84,22 +118,8 @@ static void svgtiny_setup_state_local(struct svgtiny_parse_state *state)
  */
 static void svgtiny_cleanup_state_local(struct svgtiny_parse_state *state)
 {
-	if (state->gradient_x1 != NULL) {
-		dom_string_unref(state->gradient_x1);
-		state->gradient_x1 = NULL;
-	}
-	if (state->gradient_y1 != NULL) {
-		dom_string_unref(state->gradient_y1);
-		state->gradient_y1 = NULL;
-	}
-	if (state->gradient_x2 != NULL) {
-		dom_string_unref(state->gradient_x2);
-		state->gradient_x2 = NULL;
-	}
-	if (state->gradient_y2 != NULL) {
-		dom_string_unref(state->gradient_y2);
-		state->gradient_y2 = NULL;
-	}
+	svgtiny_grad_string_cleanup(&(state->fill_grad));
+	svgtiny_grad_string_cleanup(&(state->stroke_grad));
 }
 
 
@@ -248,7 +268,6 @@ svgtiny_code svgtiny_parse(struct svgtiny_diagram *diagram,
 	state.fill = 0x000000;
 	state.stroke = svgtiny_TRANSPARENT;
 	state.stroke_width = 1;
-	state.linear_gradient_stop_count = 0;
 
 	/* parse tree */
 	code = svgtiny_parse_svg(svg, state);
@@ -1365,13 +1384,13 @@ void svgtiny_parse_paint_attributes(dom_element *node,
 	
 	exc = dom_element_get_attribute(node, state->interned_fill, &attr);
 	if (exc == DOM_NO_ERR && attr != NULL) {
-		svgtiny_parse_color(attr, &state->fill, state);
+		svgtiny_parse_color(attr, &state->fill, &state->fill_grad, state);
 		dom_string_unref(attr);
 	}
 
 	exc = dom_element_get_attribute(node, state->interned_stroke, &attr);
 	if (exc == DOM_NO_ERR && attr != NULL) {
-		svgtiny_parse_color(attr, &state->stroke, state);
+		svgtiny_parse_color(attr, &state->stroke, &state->stroke_grad, state);
 		dom_string_unref(attr);
 	}
 
@@ -1393,7 +1412,7 @@ void svgtiny_parse_paint_attributes(dom_element *node,
 			while (*s == ' ')
 				s++;
 			value = strndup(s, strcspn(s, "; "));
-			_svgtiny_parse_color(value, &state->fill, state);
+			_svgtiny_parse_color(value, &state->fill, &state->fill_grad, state);
 			free(value);
 		}
 		if ((s = strstr(style, "stroke:"))) {
@@ -1401,7 +1420,7 @@ void svgtiny_parse_paint_attributes(dom_element *node,
 			while (*s == ' ')
 				s++;
 			value = strndup(s, strcspn(s, "; "));
-			_svgtiny_parse_color(value, &state->stroke, state);
+			_svgtiny_parse_color(value, &state->stroke, &state->stroke_grad, state);
 			free(value);
 		}
 		if ((s = strstr(style, "stroke-width:"))) {
@@ -1424,6 +1443,7 @@ void svgtiny_parse_paint_attributes(dom_element *node,
  */
 
 static void _svgtiny_parse_color(const char *s, svgtiny_colour *c,
+		struct svgtiny_parse_state_gradient *grad,
 		struct svgtiny_parse_state *state)
 {
 	unsigned int r, g, b;
@@ -1455,19 +1475,21 @@ static void _svgtiny_parse_color(const char *s, svgtiny_colour *c,
 
 	} else if (5 < len && s[0] == 'u' && s[1] == 'r' && s[2] == 'l' &&
 			s[3] == '(') {
-		if (s[4] == '#') {
+		if (grad == NULL) {
+			*c = svgtiny_RGB(0, 0, 0);
+		} else if (s[4] == '#') {
 			id = strdup(s + 5);
 			if (!id)
 				return;
 			rparen = strchr(id, ')');
 			if (rparen)
 				*rparen = 0;
-			svgtiny_find_gradient(id, state);
+			svgtiny_find_gradient(id, grad, state);
 			free(id);
-			if (state->linear_gradient_stop_count == 0)
+			if (grad->linear_gradient_stop_count == 0)
 				*c = svgtiny_TRANSPARENT;
-			else if (state->linear_gradient_stop_count == 1)
-				*c = state->gradient_stop[0].color;
+			else if (grad->linear_gradient_stop_count == 1)
+				*c = grad->gradient_stop[0].color;
 			else
 				*c = svgtiny_LINEAR_GRADIENT;
 		}
@@ -1481,10 +1503,11 @@ static void _svgtiny_parse_color(const char *s, svgtiny_colour *c,
 }
 
 void svgtiny_parse_color(dom_string *s, svgtiny_colour *c,
+		struct svgtiny_parse_state_gradient *grad,
 		struct svgtiny_parse_state *state)
 {
 	dom_string_ref(s);
-	_svgtiny_parse_color(dom_string_data(s), c, state);
+	_svgtiny_parse_color(dom_string_data(s), c, grad, state);
 	dom_string_unref(s);
 }
 

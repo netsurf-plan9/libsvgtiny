@@ -17,6 +17,7 @@
 #undef GRADIENT_DEBUG
 
 static svgtiny_code svgtiny_parse_linear_gradient(dom_element *linear,
+		struct svgtiny_parse_state_gradient *grad,
 		struct svgtiny_parse_state *state);
 static float svgtiny_parse_gradient_offset(const char *s);
 static void svgtiny_path_bbox(float *p, unsigned int n,
@@ -28,7 +29,9 @@ static void svgtiny_invert_matrix(float *m, float *inv);
  * Find a gradient by id and parse it.
  */
 
-void svgtiny_find_gradient(const char *id, struct svgtiny_parse_state *state)
+void svgtiny_find_gradient(const char *id,
+		struct svgtiny_parse_state_gradient *grad,
+		struct svgtiny_parse_state *state)
 {
 	dom_element *gradient;
 	dom_string *id_str, *name;
@@ -38,26 +41,26 @@ void svgtiny_find_gradient(const char *id, struct svgtiny_parse_state *state)
 	fprintf(stderr, "svgtiny_find_gradient: id \"%s\"\n", id);
 	#endif
 
-	state->linear_gradient_stop_count = 0;
-	if (state->gradient_x1 != NULL)
-		dom_string_unref(state->gradient_x1);
-	if (state->gradient_y1 != NULL)
-		dom_string_unref(state->gradient_y1);
-	if (state->gradient_x2 != NULL)
-		dom_string_unref(state->gradient_x2);
-	if (state->gradient_y2 != NULL)
-		dom_string_unref(state->gradient_y2);
-	state->gradient_x1 = dom_string_ref(state->interned_zero_percent);
-	state->gradient_y1 = dom_string_ref(state->interned_zero_percent);
-	state->gradient_x2 = dom_string_ref(state->interned_hundred_percent);
-	state->gradient_y2 = dom_string_ref(state->interned_zero_percent);
-	state->gradient_user_space_on_use = false;
-	state->gradient_transform.a = 1;
-	state->gradient_transform.b = 0;
-	state->gradient_transform.c = 0;
-	state->gradient_transform.d = 1;
-	state->gradient_transform.e = 0;
-	state->gradient_transform.f = 0;
+	grad->linear_gradient_stop_count = 0;
+	if (grad->gradient_x1 != NULL)
+		dom_string_unref(grad->gradient_x1);
+	if (grad->gradient_y1 != NULL)
+		dom_string_unref(grad->gradient_y1);
+	if (grad->gradient_x2 != NULL)
+		dom_string_unref(grad->gradient_x2);
+	if (grad->gradient_y2 != NULL)
+		dom_string_unref(grad->gradient_y2);
+	grad->gradient_x1 = dom_string_ref(state->interned_zero_percent);
+	grad->gradient_y1 = dom_string_ref(state->interned_zero_percent);
+	grad->gradient_x2 = dom_string_ref(state->interned_hundred_percent);
+	grad->gradient_y2 = dom_string_ref(state->interned_zero_percent);
+	grad->gradient_user_space_on_use = false;
+	grad->gradient_transform.a = 1;
+	grad->gradient_transform.b = 0;
+	grad->gradient_transform.c = 0;
+	grad->gradient_transform.d = 1;
+	grad->gradient_transform.e = 0;
+	grad->gradient_transform.f = 0;
 	
 	exc = dom_string_create_interned((const uint8_t *) id,
 			strlen(id), &id_str);
@@ -81,14 +84,14 @@ void svgtiny_find_gradient(const char *id, struct svgtiny_parse_state *state)
 	}
 	
 	if (dom_string_isequal(name, state->interned_linearGradient))
-		svgtiny_parse_linear_gradient(gradient, state);
+		svgtiny_parse_linear_gradient(gradient, grad, state);
 	
 	dom_node_unref(gradient);
 	dom_string_unref(name);
 
 	#ifdef GRADIENT_DEBUG
 	fprintf(stderr, "linear_gradient_stop_count %i\n",
-			state->linear_gradient_stop_count);
+			grad->linear_gradient_stop_count);
 	#endif
 }
 
@@ -100,6 +103,7 @@ void svgtiny_find_gradient(const char *id, struct svgtiny_parse_state *state)
  */
 
 svgtiny_code svgtiny_parse_linear_gradient(dom_element *linear,
+		struct svgtiny_parse_state_gradient *grad,
 		struct svgtiny_parse_state *state)
 {
 	unsigned int i = 0;
@@ -112,7 +116,7 @@ svgtiny_code svgtiny_parse_linear_gradient(dom_element *linear,
 		if (dom_string_data(attr)[0] == (uint8_t) '#') {
 			char *s = strndup(dom_string_data(attr) + 1,
 					  dom_string_byte_length(attr) - 1);
-			svgtiny_find_gradient(s, state);
+			svgtiny_find_gradient(s, grad, state);
 			free(s);
 		}
 		dom_string_unref(attr);
@@ -120,36 +124,36 @@ svgtiny_code svgtiny_parse_linear_gradient(dom_element *linear,
 
 	exc = dom_element_get_attribute(linear, state->interned_x1, &attr);
 	if (exc == DOM_NO_ERR && attr != NULL) {
-		dom_string_unref(state->gradient_x1);
-		state->gradient_x1 = attr;
+		dom_string_unref(grad->gradient_x1);
+		grad->gradient_x1 = attr;
 		attr = NULL;
 	}
 
 	exc = dom_element_get_attribute(linear, state->interned_y1, &attr);
 	if (exc == DOM_NO_ERR && attr != NULL) {
-		dom_string_unref(state->gradient_y1);
-		state->gradient_y1 = attr;
+		dom_string_unref(grad->gradient_y1);
+		grad->gradient_y1 = attr;
 		attr = NULL;
 	}
 
 	exc = dom_element_get_attribute(linear, state->interned_x2, &attr);
 	if (exc == DOM_NO_ERR && attr != NULL) {
-		dom_string_unref(state->gradient_x2);
-		state->gradient_x2 = attr;
+		dom_string_unref(grad->gradient_x2);
+		grad->gradient_x2 = attr;
 		attr = NULL;
 	}
 
 	exc = dom_element_get_attribute(linear, state->interned_y2, &attr);
 	if (exc == DOM_NO_ERR && attr != NULL) {
-		dom_string_unref(state->gradient_y2);
-		state->gradient_y2 = attr;
+		dom_string_unref(grad->gradient_y2);
+		grad->gradient_y2 = attr;
 		attr = NULL;
 	}
 	
 	exc = dom_element_get_attribute(linear, state->interned_gradientUnits,
 					&attr);
 	if (exc == DOM_NO_ERR && attr != NULL) {
-		state->gradient_user_space_on_use = 
+		grad->gradient_user_space_on_use = 
 			dom_string_isequal(attr,
 					   state->interned_userSpaceOnUse);
 		dom_string_unref(attr);
@@ -172,12 +176,12 @@ svgtiny_code svgtiny_parse_linear_gradient(dom_element *linear,
 		fprintf(stderr, "transform %g %g %g %g %g %g\n",
 			a, b, c, d, e, f);
 		#endif
-		state->gradient_transform.a = a;
-		state->gradient_transform.b = b;
-		state->gradient_transform.c = c;
-		state->gradient_transform.d = d;
-		state->gradient_transform.e = e;
-		state->gradient_transform.f = f;
+		grad->gradient_transform.a = a;
+		grad->gradient_transform.b = b;
+		grad->gradient_transform.c = c;
+		grad->gradient_transform.d = d;
+		grad->gradient_transform.e = e;
+		grad->gradient_transform.f = f;
 		dom_string_unref(attr);
         }
 	
@@ -214,7 +218,7 @@ svgtiny_code svgtiny_parse_linear_gradient(dom_element *linear,
 							state->interned_stop_color,
 							&attr);
 			if (exc == DOM_NO_ERR && attr != NULL) {
-				svgtiny_parse_color(attr, &color, state);
+				svgtiny_parse_color(attr, &color, NULL, state);
 				dom_string_unref(attr);
 			}
 			exc = dom_element_get_attribute(stop,
@@ -237,6 +241,7 @@ svgtiny_code svgtiny_parse_linear_gradient(dom_element *linear,
 					    value != NULL) {
 						svgtiny_parse_color(value,
 								    &color,
+								    NULL,
 								    state);
 						dom_string_unref(value);
 					}
@@ -248,8 +253,8 @@ svgtiny_code svgtiny_parse_linear_gradient(dom_element *linear,
 				#ifdef GRADIENT_DEBUG
 				fprintf(stderr, "stop %g %x\n", offset, color);
 				#endif
-				state->gradient_stop[i].offset = offset;
-				state->gradient_stop[i].color = color;
+				grad->gradient_stop[i].offset = offset;
+				grad->gradient_stop[i].color = color;
 				i++;
 			}
 			dom_node_unref(stop);
@@ -259,9 +264,9 @@ svgtiny_code svgtiny_parse_linear_gradient(dom_element *linear,
 		
 		dom_nodelist_unref(stops);
 	}
-no_more_stops:	
+no_more_stops:
 	if (i > 0)
-		state->linear_gradient_stop_count = i;
+		grad->linear_gradient_stop_count = i;
 
 	return svgtiny_OK;
 }
@@ -318,6 +323,10 @@ svgtiny_code svgtiny_add_path_linear_gradient(float *p, unsigned int n,
 	float current_stop_r;
 	int red0, green0, blue0, red1, green1, blue1;
 	unsigned int t, a, b;
+	struct svgtiny_parse_state_gradient *grad;
+
+	assert(state->fill == svgtiny_LINEAR_GRADIENT);
+	grad = &state->fill_grad;
 
 	/* determine object bounding box */
 	svgtiny_path_bbox(p, n, &object_x0, &object_y0, &object_x1, &object_y1);
@@ -326,27 +335,27 @@ svgtiny_code svgtiny_add_path_linear_gradient(float *p, unsigned int n,
 			object_x0, object_y0, object_x1, object_y1);
 	#endif
 
-	if (!state->gradient_user_space_on_use) {
+	if (!grad->gradient_user_space_on_use) {
 		gradient_x0 = object_x0 +
-				svgtiny_parse_length(state->gradient_x1,
+				svgtiny_parse_length(grad->gradient_x1,
 					object_x1 - object_x0, *state);
 		gradient_y0 = object_y0 +
-				svgtiny_parse_length(state->gradient_y1,
+				svgtiny_parse_length(grad->gradient_y1,
 					object_y1 - object_y0, *state);
 		gradient_x1 = object_x0 +
-				svgtiny_parse_length(state->gradient_x2,
+				svgtiny_parse_length(grad->gradient_x2,
 					object_x1 - object_x0, *state);
 		gradient_y1 = object_y0 +
-				svgtiny_parse_length(state->gradient_y2,
+				svgtiny_parse_length(grad->gradient_y2,
 					object_y1 - object_y0, *state);
 	} else {
-		gradient_x0 = svgtiny_parse_length(state->gradient_x1,
+		gradient_x0 = svgtiny_parse_length(grad->gradient_x1,
 				state->viewport_width, *state);
-		gradient_y0 = svgtiny_parse_length(state->gradient_y1,
+		gradient_y0 = svgtiny_parse_length(grad->gradient_y1,
 				state->viewport_height, *state);
-		gradient_x1 = svgtiny_parse_length(state->gradient_x2,
+		gradient_x1 = svgtiny_parse_length(grad->gradient_x2,
 				state->viewport_width, *state);
-		gradient_y1 = svgtiny_parse_length(state->gradient_y2,
+		gradient_y1 = svgtiny_parse_length(grad->gradient_y2,
 				state->viewport_height, *state);
 	}
 	gradient_dx = gradient_x1 - gradient_x0;
@@ -399,7 +408,7 @@ svgtiny_code svgtiny_add_path_linear_gradient(float *p, unsigned int n,
 	}*/
 
 	/* invert gradient transform for applying to vertices */
-	svgtiny_invert_matrix(&state->gradient_transform.a, trans);
+	svgtiny_invert_matrix(&grad->gradient_transform.a, trans);
 	#ifdef GRADIENT_DEBUG
 	fprintf(stderr, "inverse transform %g %g %g %g %g %g\n",
 			trans[0], trans[1], trans[2], trans[3],
@@ -547,14 +556,14 @@ svgtiny_code svgtiny_add_path_linear_gradient(float *p, unsigned int n,
         }
         
 	/* render triangles */
-	stop_count = state->linear_gradient_stop_count;
+	stop_count = grad->linear_gradient_stop_count;
 	assert(2 <= stop_count);
 	current_stop = 0;
 	last_stop_r = 0;
-	current_stop_r = state->gradient_stop[0].offset;
-	red0 = red1 = svgtiny_RED(state->gradient_stop[0].color);
-	green0 = green1 = svgtiny_GREEN(state->gradient_stop[0].color);
-	blue0 = blue1 = svgtiny_BLUE(state->gradient_stop[0].color);
+	current_stop_r = grad->gradient_stop[0].offset;
+	red0 = red1 = svgtiny_RED(grad->gradient_stop[0].color);
+	green0 = green1 = svgtiny_GREEN(grad->gradient_stop[0].color);
+	blue0 = blue1 = svgtiny_BLUE(grad->gradient_stop[0].color);
 	t = min_pt;
 	a = (min_pt + 1) % svgtiny_list_size(pts);
 	b = min_pt == 0 ? svgtiny_list_size(pts) - 1 : min_pt - 1;
@@ -576,14 +585,14 @@ svgtiny_code svgtiny_add_path_linear_gradient(float *p, unsigned int n,
 			red0 = red1;
 			green0 = green1;
 			blue0 = blue1;
-			red1 = svgtiny_RED(state->
+			red1 = svgtiny_RED(grad->
 					gradient_stop[current_stop].color);
-			green1 = svgtiny_GREEN(state->
+			green1 = svgtiny_GREEN(grad->
 					gradient_stop[current_stop].color);
-			blue1 = svgtiny_BLUE(state->
+			blue1 = svgtiny_BLUE(grad->
 					gradient_stop[current_stop].color);
 			last_stop_r = current_stop_r;
-			current_stop_r = state->
+			current_stop_r = grad->
 					gradient_stop[current_stop].offset;
 		}
 		p = malloc(10 * sizeof p[0]);
@@ -609,10 +618,9 @@ svgtiny_code svgtiny_add_path_linear_gradient(float *p, unsigned int n,
 		shape->path_length = 10;
 		/*shape->fill = svgtiny_TRANSPARENT;*/
 		if (current_stop == 0)
-			shape->fill = state->gradient_stop[0].color;
+			shape->fill = grad->gradient_stop[0].color;
 		else if (current_stop == stop_count)
-			shape->fill = state->
-					gradient_stop[stop_count - 1].color;
+			shape->fill = grad->gradient_stop[stop_count - 1].color;
 		else {
 			float stop_r = (mean_r - last_stop_r) /
 				(current_stop_r - last_stop_r);
