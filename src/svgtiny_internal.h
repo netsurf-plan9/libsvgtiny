@@ -102,9 +102,4 @@ void *svgtiny_list_get(struct svgtiny_list *list,
 void *svgtiny_list_push(struct svgtiny_list *list);
 void svgtiny_list_free(struct svgtiny_list *list);
 
-/* colors.gperf */
-const struct svgtiny_named_color *
-		svgtiny_color_lookup(register const char *str,
-				register unsigned int len);
-
 #endif
