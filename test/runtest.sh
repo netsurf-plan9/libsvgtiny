@@ -73,8 +73,11 @@ done
 echo "Tests:${SVGTESTTOTC} Pass:${SVGTESTPASSC} Fail:${SVGTESTFAILC} Error:${SVGTESTERRC}"
 
 # exit code
-if [ "${SVGTESTERRC}" -gt 0 ]; then
+if [ "${SVGTESTFAILC}" -gt 0 ]; then
     exit 1
+fi
+if [ "${SVGTESTERRC}" -gt 0 ]; then
+    exit 2
 fi
 
 exit 0
