@@ -8,6 +8,7 @@
 
 #include <assert.h>
 #include <math.h>
+#include <math9.h>
 #include <setjmp.h>
 #include <stdbool.h>
 #include <stdio.h>
